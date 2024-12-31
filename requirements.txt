@@ -4,3 +4,4 @@ chess
 torch
 ipykernel
 tqdm
+matplotlib

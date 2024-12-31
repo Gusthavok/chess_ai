@@ -11,8 +11,8 @@ class EncoderLayer(nn.Module):
 
     def forward(self, x):
         # Appliquer un réseau dense pour chaque élément de la séquence
-        x = F.relu(self.dense1(x))
-        x = F.relu(self.dense2(x))
+        x = F.leaky_relu(self.dense1(x))
+        x = F.leaky_relu(self.dense2(x))
         return x  # Résultat de forme (batch_size, 64, output_dim)
 
 class TransformerBlock(nn.Module):
@@ -34,7 +34,7 @@ class TransformerBlock(nn.Module):
         x = x + x  # Résidu (ajout de l'entrée initiale à la sortie)
 
         # Feedforward
-        ff_output = F.relu(self.ff1(x))
+        ff_output = F.leaky_relu(self.ff1(x))
         ff_output = F.dropout(ff_output, p=self.dropout_rate)
         ff_output = self.ff2(ff_output)
 
@@ -54,7 +54,7 @@ class ChessModel(nn.Module):
         self.dense1 = nn.Linear(64 * dim_representation_piece + 6, 1024) # 6=dimension de input2
         self.dense2 = nn.Linear(1024, 256)
         self.dense3 = nn.Linear(256, 256)
-        self.output = nn.Linear(256, 1)
+        self.output = nn.Linear(256, 3)
 
     def forward(self, input1, input2):
         # Passer input1 à travers les couches
@@ -76,15 +76,14 @@ class ChessModel(nn.Module):
         x = torch.cat((x1, input2), dim=1)  # Concaténation sur la dimension des features
 
         # Passer par les couches denses (MLP)
-        x = F.relu(self.dense1(x))
-        x = F.relu(self.dense2(x))
-        x = F.relu(self.dense3(x))
+        x = F.leaky_relu(self.dense1(x))
+        x = F.leaky_relu(self.dense2(x))
+        x = F.leaky_relu(self.dense3(x))
 
         # Sortie finale
         return self.output(x)
 
 # Fonction pour charger un modèle sauvegardé
-def load_existing_model(model_path):
-    model = ChessModel(num_transformer_blocks=4, dim_representation_piece=8)  # Indiquer ici le nombre de blocs et la dimension
+def load_existing_model(model, model_path):
     model.load_state_dict(torch.load(model_path))
     return model

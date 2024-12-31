@@ -72,7 +72,7 @@ def process_features_chunk(chunk):
 def process_features_chunk_2(chunk):
     return chunk.apply(pd.Series)
 
-def load_data(file_path='../dataset/chessData.csv', num_rows=5000000):
+def load_data(file_path, num_rows=5000000):
     """
     Charge et prépare les données pour l'entraînement.
 
