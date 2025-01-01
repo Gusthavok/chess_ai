@@ -56,7 +56,7 @@ def optimize(model: nn.ModuleDict, model_smooth: nn.ModuleDict, optimizer:optim.
     estimation, estimation_95, estimation_05 = evaluation[:, 0:1], evaluation[:, 1:2], evaluation[:, 2:3]
     
     criterion = nn.MSELoss()
-    loss_estimation = criterion(estimation, -smooth_score_adversaire)# score du joueur = - score de l'adversaire ! 
+    loss_estimation = criterion(estimation, smooth_score_adversaire)
     if only_estimation:
         total_loss = loss_estimation
         ecart=0
