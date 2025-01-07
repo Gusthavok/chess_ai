@@ -1,26 +1,39 @@
 from utils.dataset import load_data
-from utils.model import ChessModel, load_existing_model
+from utils.model import ChessModel, SimpleChessModel, load_existing_model
 from utils.training_from_scratch import *
 from utils.graphics import Graphics
 from utils.transform_data import chess_to_data
 
+from math import sqrt
 from random import randint
 import chess
 import tqdm
 
-LEARNING_RATE, BATCH_SIZE, TAU_SMOOTH_NET= 1e-4, 8192, 1e-2
-GN_START, GN_TAU_START, GN_END, GN_TAU_END = 2600 + 15*15, 1., 2600+300*15, .2
 
-GN_RATE = (GN_TAU_END - GN_TAU_START)/(GN_END-GN_START)
+LEARNING_RATE, BATCH_SIZE, TAU_SMOOTH_NET= 1e-3, 256, 1e-2
+GN_START, GN_PROFONDEUR_START, GN_END, GN_PROFONDEUR_END = 300*50, 0, 3000*50, 5
+GN_PROFONDEUR_RATE = (GN_PROFONDEUR_END- GN_PROFONDEUR_START)/(GN_END-GN_START)
+
+
+def get_tau(PROFONDEUR):
+    if PROFONDEUR < .99:
+        return (3 - sqrt(9-8*(1-PROFONDEUR)))/(2*(1-PROFONDEUR))
+    elif PROFONDEUR > 1.01:
+        return (-3 + sqrt(9+8*(PROFONDEUR-1)))/(2*(PROFONDEUR-1))
+    else:
+        return 2/3
+
+GN_TAU_START = get_tau(GN_PROFONDEUR_START)
+GN_TAU_END = get_tau(GN_PROFONDEUR_END)
 
 def get_tau_hard_critic(game_number):
-    truncated_gn = game_number - GN_START
-    if truncated_gn<0:
-        return 1
-    elif truncated_gn>GN_END:
+    if game_number<GN_START:
+        return GN_TAU_START
+    elif game_number>GN_END:
         return GN_TAU_END
     else:
-        return GN_TAU_START+GN_RATE*truncated_gn
+        PROFONDEUR = GN_PROFONDEUR_RATE * (game_number-GN_START) + GN_PROFONDEUR_START
+        return get_tau(PROFONDEUR)
          
 def get_real_hard_score(board:chess.Board, board_data):
     if board.is_insufficient_material() or board.is_stalemate():
@@ -57,12 +70,16 @@ def get_next_board(board : chess.Board, net, random=False):
     return board # en soi pas besoin car déjà modifié en place mais pour plus de clareté
 
         
-def main():
-    net = ChessModel() #policy_net
-    smooth_net = ChessModel() #target_net
+def main(simpleModel=True):
+    if simpleModel:
+        model_base=SimpleChessModel
+    else:
+        model_base=ChessModel
+    net = model_base() #policy_net
+    smooth_net = model_base() #target_net
     soft_update(smooth_net=smooth_net, net=net, TAU=1) # Les deux nets partent avec les meme valeurs
     
-    memory_transition = ReplayMemory(capacity=600000)
+    memory_transition = ReplayMemory(capacity=5000000)
     optimizer = optim.AdamW(net.parameters(), lr=LEARNING_RATE, amsgrad=True)
     
     graphics = Graphics()
@@ -76,7 +93,7 @@ def main():
 
             hard_score=get_real_hard_score(board, current_board_data[0])
 
-            board = get_next_board(board, net, random=(game_number<GN_START+100))
+            board = get_next_board(board, net, random=(game_number<GN_START-50*50))
             next_board_data = chess_to_data(board, as_tensor=True)
 
             memory_transition.push(current_board_data[0].unsqueeze(dim=0), current_board_data[1].unsqueeze(dim=0), next_board_data[0].unsqueeze(dim=0), next_board_data[1].unsqueeze(dim=0), hard_score.unsqueeze(dim=0)) # ('initial_board', 'estimated_best_board', 'hard_score'))
@@ -86,17 +103,21 @@ def main():
             if board.is_checkmate() or board.is_stalemate() or board.fullmove_number>80: # or board.is_insufficient_material():
                 game_ended=True
             
-            if len(memory_transition)>50*BATCH_SIZE and board.fullmove_number%40==0:
-                loss_estimation, ecart, absolute_distance=optimize(model=net, model_smooth=smooth_net, optimizer=optimizer, memory=memory_transition, BATCH_SIZE=BATCH_SIZE, TAU_HARD=tau_hard_critic)
-                graphics.add(loss_estimation, ecart, absolute_distance, tau_hard_score=tau_hard_critic)
-                soft_update(net=net, smooth_net=smooth_net, TAU=TAU_SMOOTH_NET)
+        # print(memory_transition.memory)
+        if len(memory_transition)>50*BATCH_SIZE and game_number%5==0:# and board.fullmove_number%40==0:
+            loss_estimation, ecart, absolute_distance=optimize(model=net, model_smooth=smooth_net, optimizer=optimizer, memory=memory_transition, BATCH_SIZE=BATCH_SIZE, TAU_HARD=tau_hard_critic)
+            graphics.add(loss_estimation, ecart, absolute_distance, tau_hard_score=tau_hard_critic)
+            soft_update(net=net, smooth_net=smooth_net, TAU=TAU_SMOOTH_NET)
                 
         
 
-        if len(memory_transition)>50*BATCH_SIZE and game_number%15==0:   
+        if len(memory_transition)>50*BATCH_SIZE and game_number%50==0:   
             graphics.push()
-            graphics.save_plot("graph_training")
-            graphics.save("graph_training_values")
+            graphics.save_plot("../output/current/graph_training")
+            graphics.save("../output/current/graph_training_values")
+        
+        if game_number%120==0:
+            torch.save(smooth_net.state_dict(), "../output/current/model_number_1")
             
             
     

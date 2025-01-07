@@ -83,7 +83,21 @@ class ChessModel(nn.Module):
         # Sortie finale
         return self.output(x)
 
-# Fonction pour charger un modèle sauvegardé
+class SimpleChessModel(nn.Module):
+    def __init__(self):
+        super(SimpleChessModel, self).__init__()
+        self.dense1 = nn.Linear(64 + 6, 256) # 6=dimension de input2
+        # self.dense2 = nn.Linear(256, 256)
+        # self.dense3 = nn.Linear(256, 256)
+        self.output = nn.Linear(256, 3)# Fonction pour charger un modèle sauvegardé
+    
+    def forward(self, input1, input2):
+        x = torch.cat((input1, input2), dim=1)
+        x = F.leaky_relu(self.dense1(x))
+        # x = F.leaky_relu(self.dense2(x))
+        # x = F.leaky_relu(self.dense3(x))
+        return self.output(x)
+
 def load_existing_model(model, model_path):
     model.load_state_dict(torch.load(model_path))
     return model

@@ -47,14 +47,16 @@ def optimize(model: nn.ModuleDict, model_smooth: nn.ModuleDict, optimizer:optim.
     estimated_best_board_input2_batch = torch.cat(batch.estimated_best_board_input_2)
 
     hard_score_batch = torch.cat(batch.hard_score).unsqueeze(1)
-    
     score_adversaire = -model_smooth(estimated_best_board_input1_batch, estimated_best_board_input2_batch)[:, 0:1] # score de l'adversaire
     
     smooth_score_adversaire = (1-TAU_HARD)*score_adversaire + TAU_HARD*hard_score_batch 
-    
+    # print("smooth_score_adversaire", smooth_score_adversaire)    
+
     evaluation = model(initial_board_input1_batch, initial_board_input2_batch)
+
     estimation, estimation_95, estimation_05 = evaluation[:, 0:1], evaluation[:, 1:2], evaluation[:, 2:3]
-    
+    # print("estimation", estimation)    
+
     criterion = nn.MSELoss()
     loss_estimation = criterion(estimation, smooth_score_adversaire)
     if only_estimation:
@@ -65,6 +67,8 @@ def optimize(model: nn.ModuleDict, model_smooth: nn.ModuleDict, optimizer:optim.
         loss_quantile_05 = quantile_loss(estimation_05, smooth_score_adversaire, tau=0.05)
         total_loss = loss_estimation + loss_quantile_95 + loss_quantile_05
         ecart=torch.mean(loss_quantile_95-loss_quantile_05).item()
+        
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=50)
 
     total_loss.backward()
     optimizer.step()
