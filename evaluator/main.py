@@ -99,7 +99,7 @@ def main(model_name):
 
             hard_score=get_real_hard_score(board, current_board_data[0])
 
-            board = get_next_board(board, net, random=(game_number<GN_START-50*50))
+            board = get_next_board(board, net, random=(game_number<GN_START))
             next_board_data = chess_to_data(board, as_tensor=True)
 
             memory_transition.push(current_board_data[0].unsqueeze(dim=0), current_board_data[1].unsqueeze(dim=0), next_board_data[0].unsqueeze(dim=0), next_board_data[1].unsqueeze(dim=0), hard_score.unsqueeze(dim=0)) # ('initial_board', 'estimated_best_board', 'hard_score'))
@@ -117,7 +117,7 @@ def main(model_name):
                 
         
 
-        if len(memory_transition)>50*BATCH_SIZE and game_number%50==0:   
+        if len(memory_transition)>50*BATCH_SIZE and game_number%10==0:   
             graphics.push()
             graphics.save_plot("../output/current/graph_training")
             graphics.save("../output/current/graph_training_values")
@@ -127,8 +127,7 @@ def main(model_name):
             
             
     
-    
-    
+
 
 if __name__ == "__main__":
     main(model_name="CNN")
