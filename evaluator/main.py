@@ -1,5 +1,6 @@
 from utils.dataset import load_data
-from utils.model import ChessModel, SimpleChessModel, load_existing_model
+from utils.model_Transformer import ChessModel, SimpleChessModel, load_existing_model
+from utils.model_CNN import ChessModelCNN
 from utils.training_from_scratch import *
 from utils.graphics import Graphics
 from utils.transform_data import chess_to_data
@@ -10,7 +11,7 @@ import chess
 import tqdm
 
 
-LEARNING_RATE, BATCH_SIZE, TAU_SMOOTH_NET= 1e-3, 256, 1e-2
+LEARNING_RATE, BATCH_SIZE, TAU_SMOOTH_NET= 1e-3, 1024, 1e-2
 GN_START, GN_PROFONDEUR_START, GN_END, GN_PROFONDEUR_END = 300*50, 0, 3000*50, 5
 GN_PROFONDEUR_RATE = (GN_PROFONDEUR_END- GN_PROFONDEUR_START)/(GN_END-GN_START)
 
@@ -70,11 +71,16 @@ def get_next_board(board : chess.Board, net, random=False):
     return board # en soi pas besoin car déjà modifié en place mais pour plus de clareté
 
         
-def main(simpleModel=True):
-    if simpleModel:
+def main(model_name):
+    if model_name=='simple':
         model_base=SimpleChessModel
-    else:
+    elif model_name=='CNN':
+        model_base=ChessModelCNN
+    elif model_name=='Transformer':
         model_base=ChessModel
+    else: 
+        raise ValueError(f"{model_name} is undefined")
+    
     net = model_base() #policy_net
     smooth_net = model_base() #target_net
     soft_update(smooth_net=smooth_net, net=net, TAU=1) # Les deux nets partent avec les meme valeurs
@@ -104,7 +110,7 @@ def main(simpleModel=True):
                 game_ended=True
             
         # print(memory_transition.memory)
-        if len(memory_transition)>50*BATCH_SIZE and game_number%5==0:# and board.fullmove_number%40==0:
+        if len(memory_transition)>50*BATCH_SIZE and game_number%1==0:# and board.fullmove_number%40==0:
             loss_estimation, ecart, absolute_distance=optimize(model=net, model_smooth=smooth_net, optimizer=optimizer, memory=memory_transition, BATCH_SIZE=BATCH_SIZE, TAU_HARD=tau_hard_critic)
             graphics.add(loss_estimation, ecart, absolute_distance, tau_hard_score=tau_hard_critic)
             soft_update(net=net, smooth_net=smooth_net, TAU=TAU_SMOOTH_NET)
@@ -125,4 +131,4 @@ def main(simpleModel=True):
     
 
 if __name__ == "__main__":
-    main()
+    main(model_name="CNN")

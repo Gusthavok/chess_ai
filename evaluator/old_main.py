@@ -1,5 +1,5 @@
 from utils.dataset import load_data
-from utils.model import ChessModel, load_existing_model
+from evaluator.utils.model_Transformer import ChessModel, load_existing_model
 from utils.train import train_and_save_model
 from utils.training_from_scratch import *
 

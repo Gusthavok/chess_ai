@@ -1,7 +1,7 @@
 import chess 
 import torch
 # Fonction pour traiter l'état de l'échiquier à partir de la notation FEN
-def chess_to_data(board:chess.Board, as_tensor=False):
+def chess_to_data(board:chess.Board, as_tensor=False, as_matrix=False):
 
     # Récupération des droits de roque et de l'état de mise en échec
     WCKI = 1 if board.has_kingside_castling_rights(chess.WHITE) else 0
@@ -29,4 +29,6 @@ def chess_to_data(board:chess.Board, as_tensor=False):
     if as_tensor:
         bstr = torch.tensor(bstr, dtype=torch.float32)
         input2 = torch.tensor(input2, dtype=torch.float32)
+    if as_matrix:
+        bstr=bstr.reshape((8, 8))
     return (bstr, input2)
