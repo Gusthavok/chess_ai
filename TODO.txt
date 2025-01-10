@@ -1,0 +1,4 @@
+- évaluation du niveau. 
+- version simple pour passer le modèle directement sur le kaagle de google. 
+- diversifier l'exploration des coups possibles. 
+- départ autre que la position initiale. 

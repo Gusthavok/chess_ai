@@ -35,19 +35,20 @@ class ChessModelCNN(nn.Module):
         
         # Fully Connected Layer: Transformation en sortie finale
         self.fc1 = nn.Linear(
-            in_features=32 * 8 * 8,  # Chaque case contribue à 32 features
+            in_features=32 * 8 * 8+6,  # Chaque case contribue à 32 features
             out_features=128         # Nombre de neurones dans la couche cachée
         )
         self.fc2 = nn.Linear(128, 3) 
         
-    def forward(self, x):
+    def forward(self, x1, x2):
         # Convolution + Activation ReLU + Pooling
+        x =x1.unsqueeze(dim=1)
         x = F.relu(self.conv1(x))       # (16, 8, 8)
         x = F.relu(self.conv2(x))       # (32, 8, 8)
         
         # Aplatir pour les couches fully connected
         x = x.view(x.size(0), -1)       # (batch_size, 32 * 8 * 8)
-        
+        x = torch.cat((x, x2), dim=1)
         # Fully Connected Layers
         x = F.relu(self.fc1(x))         # (batch_size, 128)
         x = self.fc2(x)                 # (batch_size, 64)

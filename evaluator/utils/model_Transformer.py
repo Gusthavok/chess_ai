@@ -98,6 +98,6 @@ class SimpleChessModel(nn.Module):
         # x = F.leaky_relu(self.dense3(x))
         return self.output(x)
 
-def load_existing_model(model, model_path):
-    model.load_state_dict(torch.load(model_path))
+def load_existing_model(model:nn.Module, model_path):
+    model.load_state_dict(state_dict=torch.load(model_path))
     return model

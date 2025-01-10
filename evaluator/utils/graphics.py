@@ -80,6 +80,7 @@ class Graphics:
         plt.plot(self.liste_mean_absolute_distance, label="Mean Absolute Distance", color="green")
         plt.title("Mean Ecart and Absolute Distance")
         plt.xlabel("Iterations")
+        plt.ylim((0, 5))
         plt.ylabel("Values")
         plt.legend()
         plt.grid(True)

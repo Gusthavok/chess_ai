@@ -45,6 +45,7 @@ def optimize(model: nn.ModuleDict, model_smooth: nn.ModuleDict, optimizer:optim.
     initial_board_input2_batch = torch.cat(batch.initial_board_input_2)
     estimated_best_board_input1_batch = torch.cat(batch.estimated_best_board_input_1)
     estimated_best_board_input2_batch = torch.cat(batch.estimated_best_board_input_2)
+    print(estimated_best_board_input1_batch.shape)
 
     hard_score_batch = torch.cat(batch.hard_score).unsqueeze(1)
     score_adversaire = -model_smooth(estimated_best_board_input1_batch, estimated_best_board_input2_batch)[:, 0:1] # score de l'adversaire

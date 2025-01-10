@@ -12,7 +12,8 @@ import tqdm
 
 
 LEARNING_RATE, BATCH_SIZE, TAU_SMOOTH_NET= 1e-3, 1024, 1e-2
-GN_START, GN_PROFONDEUR_START, GN_END, GN_PROFONDEUR_END = 300*50, 0, 3000*50, 5
+GN_START, GN_PROFONDEUR_START = 100*10+int(1024*50/160), 0
+GN_END, GN_PROFONDEUR_END = 8000*10+GN_START, 30
 GN_PROFONDEUR_RATE = (GN_PROFONDEUR_END- GN_PROFONDEUR_START)/(GN_END-GN_START)
 
 
@@ -44,7 +45,7 @@ def get_real_hard_score(board:chess.Board, board_data):
     else:
         return get_hard_score(board_data)
 
-def get_next_board(board : chess.Board, net, random=False):
+def get_next_board(board : chess.Board, net, random=False, as_matrix=False):
     legal_moves = list(board.legal_moves)
     if not random:
         resulting_boards_data_input1 = []
@@ -52,13 +53,13 @@ def get_next_board(board : chess.Board, net, random=False):
         
         for move in legal_moves:
             board.push(move)
-            input1, input2 = chess_to_data(board)
-            resulting_boards_data_input1.append(input1)
-            resulting_boards_data_input2.append(input2)
+            input1, input2 = chess_to_data(board, as_tensor=True, as_matrix=as_matrix)
+            resulting_boards_data_input1.append(input1.unsqueeze(0))
+            resulting_boards_data_input2.append(input2.unsqueeze(0))
             board.pop()
 
-        resulting_boards_data_input1 = torch.tensor(resulting_boards_data_input1, dtype=torch.float32)
-        resulting_boards_data_input2 = torch.tensor(resulting_boards_data_input2, dtype=torch.float32)
+        resulting_boards_data_input1 = torch.cat(resulting_boards_data_input1, dim=0)
+        resulting_boards_data_input2 = torch.cat(resulting_boards_data_input2, dim=0)
         
         scores = net(resulting_boards_data_input1, resulting_boards_data_input2)[:, 0]
         indice_move=torch.argmax(scores)
@@ -72,10 +73,12 @@ def get_next_board(board : chess.Board, net, random=False):
 
         
 def main(model_name):
+    as_matrix=False
     if model_name=='simple':
         model_base=SimpleChessModel
     elif model_name=='CNN':
         model_base=ChessModelCNN
+        as_matrix=True
     elif model_name=='Transformer':
         model_base=ChessModel
     else: 
@@ -83,6 +86,8 @@ def main(model_name):
     
     net = model_base() #policy_net
     smooth_net = model_base() #target_net
+    if True:
+        model_base=load_existing_model(model=net, model_path="../output/CNN_1.0/model_number_1")
     soft_update(smooth_net=smooth_net, net=net, TAU=1) # Les deux nets partent avec les meme valeurs
     
     memory_transition = ReplayMemory(capacity=5000000)
@@ -92,15 +97,15 @@ def main(model_name):
     for game_number in tqdm.trange(1000000):
         tau_hard_critic = get_tau_hard_critic(game_number)
         board=chess.Board()
-        current_board_data=chess_to_data(board, as_tensor=True)
+        current_board_data=chess_to_data(board, as_tensor=True, as_matrix=as_matrix)
         
         game_ended = False
         while not game_ended:
 
             hard_score=get_real_hard_score(board, current_board_data[0])
 
-            board = get_next_board(board, net, random=(game_number<GN_START))
-            next_board_data = chess_to_data(board, as_tensor=True)
+            board = get_next_board(board, net, random=(game_number<GN_START-100*10), as_matrix=as_matrix)
+            next_board_data = chess_to_data(board, as_tensor=True, as_matrix=as_matrix)
 
             memory_transition.push(current_board_data[0].unsqueeze(dim=0), current_board_data[1].unsqueeze(dim=0), next_board_data[0].unsqueeze(dim=0), next_board_data[1].unsqueeze(dim=0), hard_score.unsqueeze(dim=0)) # ('initial_board', 'estimated_best_board', 'hard_score'))
             current_board_data=next_board_data
