@@ -6,7 +6,7 @@ from utils.graphics import Graphics
 from utils.transform_data import chess_to_data
 
 from math import sqrt
-from random import randint
+from random import randint, random
 import chess
 import tqdm
 
@@ -45,31 +45,38 @@ def get_real_hard_score(board:chess.Board, board_data):
     else:
         return get_hard_score(board_data)
 
-def get_next_board(board : chess.Board, net, random=False, as_matrix=False):
+def get_next_board(board : chess.Board, net, random_move_rate=0, as_matrix=False):
     legal_moves = list(board.legal_moves)
-    if not random:
-        resulting_boards_data_input1 = []
-        resulting_boards_data_input2 = []
-        
-        for move in legal_moves:
-            board.push(move)
-            input1, input2 = chess_to_data(board, as_tensor=True, as_matrix=as_matrix)
-            resulting_boards_data_input1.append(input1.unsqueeze(0))
-            resulting_boards_data_input2.append(input2.unsqueeze(0))
-            board.pop()
-
-        resulting_boards_data_input1 = torch.cat(resulting_boards_data_input1, dim=0)
-        resulting_boards_data_input2 = torch.cat(resulting_boards_data_input2, dim=0)
-        
-        scores = net(resulting_boards_data_input1, resulting_boards_data_input2)[:, 0]
-        indice_move=torch.argmax(scores)
-    else:
-        indice_move = randint(0, len(legal_moves)-1)
-        
-    move = legal_moves[indice_move]
-    board.push(move)
+    resulting_boards_data_input1 = []
+    resulting_boards_data_input2 = []
     
-    return board # en soi pas besoin car déjà modifié en place mais pour plus de clareté
+    for move in legal_moves:
+        board.push(move)
+        input1, input2 = chess_to_data(board, as_tensor=True, as_matrix=as_matrix)
+        resulting_boards_data_input1.append(input1.unsqueeze(0))
+        resulting_boards_data_input2.append(input2.unsqueeze(0))
+        board.pop()
+
+    resulting_boards_data_input1 = torch.cat(resulting_boards_data_input1, dim=0)
+    resulting_boards_data_input2 = torch.cat(resulting_boards_data_input2, dim=0)
+    
+    scores = net(resulting_boards_data_input1, resulting_boards_data_input2)[:, 0]
+    indice_best_move=torch.argmax(scores)
+        
+    best_move = legal_moves[indice_best_move]
+    
+
+    if random_move_rate>random(): # move aleatoire
+        best_board=board.copy()
+        best_board.push(best_move)
+        
+        real_move = legal_moves[randint(0, len(legal_moves)-1)]
+        board.push(real_move)
+    else:
+        board.push(best_move)
+        best_board=board
+    
+    return best_board, board # en soi pas besoin car déjà modifié en place mais pour plus de clareté
 
         
 def main(model_name):
@@ -104,8 +111,8 @@ def main(model_name):
 
             hard_score=get_real_hard_score(board, current_board_data[0])
 
-            board = get_next_board(board, net, random=(game_number<GN_START-100*10), as_matrix=as_matrix)
-            next_board_data = chess_to_data(board, as_tensor=True, as_matrix=as_matrix)
+            next_best_board, board = get_next_board(board, net, random_move_rate=tau_hard_critic/3, as_matrix=as_matrix)
+            next_board_data = chess_to_data(next_best_board, as_tensor=True, as_matrix=as_matrix)
 
             memory_transition.push(current_board_data[0].unsqueeze(dim=0), current_board_data[1].unsqueeze(dim=0), next_board_data[0].unsqueeze(dim=0), next_board_data[1].unsqueeze(dim=0), hard_score.unsqueeze(dim=0)) # ('initial_board', 'estimated_best_board', 'hard_score'))
             current_board_data=next_board_data
