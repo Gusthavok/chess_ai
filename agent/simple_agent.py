@@ -1,8 +1,8 @@
 import chess
 import torch
-from ..evaluator.utils.transform_data import chess_to_data
+from evaluator.utils.transform_data import chess_to_data
 
-def agent(board : chess.Board, net, as_matrix=False):
+def action_agent(board : chess.Board, net, as_matrix=False):
     legal_moves = list(board.legal_moves)
 
     resulting_boards_data_input1 = []
@@ -24,3 +24,4 @@ def agent(board : chess.Board, net, as_matrix=False):
     move = legal_moves[indice_move]
 
     return move
+

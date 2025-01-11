@@ -79,7 +79,7 @@ def get_next_board(board : chess.Board, net, random_move_rate=0, as_matrix=False
     return best_board, board # en soi pas besoin car déjà modifié en place mais pour plus de clareté
 
         
-def main(model_name):
+def main(model_name, reload_model_name=None):
     as_matrix=False
     if model_name=='simple':
         model_base=SimpleChessModel
@@ -93,8 +93,9 @@ def main(model_name):
     
     net = model_base() #policy_net
     smooth_net = model_base() #target_net
-    if True:
-        model_base=load_existing_model(model=net, model_path="../output/CNN_1.0/model_number_1")
+    
+    if reload_model_name:
+        model_base=load_existing_model(model=net, model_path=reload_model_name)
     soft_update(smooth_net=smooth_net, net=net, TAU=1) # Les deux nets partent avec les meme valeurs
     
     memory_transition = ReplayMemory(capacity=5000000)
@@ -142,4 +143,4 @@ def main(model_name):
 
 
 if __name__ == "__main__":
-    main(model_name="CNN")
+    main(model_name="CNN") #, reload_model_name="../output/CNN_1.0/model_number_1")
