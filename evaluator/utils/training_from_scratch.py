@@ -45,7 +45,6 @@ def optimize(model: nn.ModuleDict, model_smooth: nn.ModuleDict, optimizer:optim.
     initial_board_input2_batch = torch.cat(batch.initial_board_input_2)
     estimated_best_board_input1_batch = torch.cat(batch.estimated_best_board_input_1)
     estimated_best_board_input2_batch = torch.cat(batch.estimated_best_board_input_2)
-    print(estimated_best_board_input1_batch.shape)
 
     hard_score_batch = torch.cat(batch.hard_score).unsqueeze(1)
     score_adversaire = -model_smooth(estimated_best_board_input1_batch, estimated_best_board_input2_batch)[:, 0:1] # score de l'adversaire
@@ -78,6 +77,42 @@ def optimize(model: nn.ModuleDict, model_smooth: nn.ModuleDict, optimizer:optim.
 
     return loss_estimation.item(), ecart, absolute_distance
     
+def optimize_checkmate_data(model: nn.ModuleDict, optimizer:optim.Optimizer, memory_checkmate: ReplayMemory, BATCH_SIZE:int, only_estimation=True):
+    transitions = memory_checkmate.sample(BATCH_SIZE)
+    batch = Transition(*zip(*transitions))
+
+    initial_board_input1_batch = torch.cat(batch.initial_board_input_1)
+    initial_board_input2_batch = torch.cat(batch.initial_board_input_2)
+
+
+    evaluation = model(initial_board_input1_batch, initial_board_input2_batch)
+
+    estimation, estimation_95, estimation_05 = evaluation[:, 0:1], evaluation[:, 1:2], evaluation[:, 2:3]
+    
+    score_adversaire = torch.cat(batch.hard_score).unsqueeze(1) # score de l'adversaire
+
+
+    criterion = nn.MSELoss()
+    loss_estimation = criterion(estimation, score_adversaire)
+    if only_estimation:
+        total_loss = loss_estimation
+        ecart=0
+    else:
+        loss_quantile_95 = quantile_loss(estimation_95, score_adversaire, tau=0.95)
+        loss_quantile_05 = quantile_loss(estimation_05, score_adversaire, tau=0.05)
+        total_loss = loss_estimation + loss_quantile_95 + loss_quantile_05
+        ecart=torch.mean(loss_quantile_95-loss_quantile_05).item()
+        
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=50)
+
+    total_loss.backward()
+    optimizer.step()
+        
+    absolute_distance = torch.abs(estimation - score_adversaire).mean().item()
+
+    return loss_estimation.item(), ecart, absolute_distance
+   
+
 def get_hard_score(board):
     return 10*torch.sum(board, dtype=torch.float32)
 
